@@ -1,7 +1,10 @@
 /*
  * Nimble - Simple Input and Step-handle Library
- * Version 1.2.6
+ * Version 1.2.7
  * Updates:
+ *  1.2.7:
+ *  Make event system object- vs parameter-based
+ *  Strip old fps system from nimble.Steps and send callback delta-time 
  *  1.2.6:
  *  Assigned mouse button values to false on start
  *  1.2.5:
@@ -95,7 +98,7 @@ var nimble = new (function(){'use strict';
 			ctx=cnv.getContext(mode);
 			if(!t.antialiasing) ctx.imageSmoothingEnabled = false;
 			t.context=ctx;
-			run("resize",wid,hgt,ev);
+			run({event:"resize",width:wid,height:hgt,original:ev});
 			t.redraw();
 		}
 		addListens(t,window,{
@@ -119,7 +122,7 @@ var nimble = new (function(){'use strict';
 			}
 		}
 		t.redraw = function() {
-			run("draw",ctx,wid,hgt);
+			run({event:"draw",context:ctx,width:wid,height:hgt});
 		}
 		t.back = null;
 		
@@ -128,29 +131,28 @@ var nimble = new (function(){'use strict';
 	
 	var Steps = function(context) {var t=this; if(!(t instanceof Steps)) throw "Bad instantiation of object nimble.Steps";
 		context=context||window;
-		var tm=null,fps=30,running=false;
-		
-		function step() {
+		var tm=null,fps=null,running=false,dt=null;
+
+		function step(_dt) {
 			if(!running) return;
-			run("step",fps);
-			tm=window[requestAF](step);
+			var d=+dt===dt ? _dt-dt : 16.67; dt=_dt;
+			fps = 1000/d;
+			run({event:"step",delta:d});
+			if(running) tm=window[requestAF](step);
 		}
-		t.enable = t.start = function(newfps) {
+		t.enable = t.start = function() {
 			if(tm!==null) return;
-			if(+newfps===newfps) fps=Math.max(1,newfps);
 			tm=window[requestAF](step);
-			//tm=setInterval(step,1000/fps);
 			running=true;
 		}
 		t.disable = t.stop = function() {
 			if(tm===null) return;
-			//clearInterval(tm); tm=null;
 			window[cancelAF](tm); tm=null;
 			running=false;
+			dt=fps=null;
 		}
-		t.fps = function(newfps) {
-			if(+newfps!==newfps) return fps;
-			fps=Math.max(newfps);
+		t.fps = function() {
+			return fps;
 		}
 		
 		var run = addHooks(t,{step:[]});
@@ -184,13 +186,13 @@ var nimble = new (function(){'use strict';
 				if(t[k]) return;
 				t[k]=true;
 				if(t.steps) t.pressed[k]=true;
-				run("down",ev.which,k,ev);
+				run({event:"down",code:ev.which,key:k,original:ev});
 			},
 			keyup:function(ev){
 				var k=icodes[ev.which];
 				t[k]=false;
 				if(t.steps) t.released[k]=true;
-				run("up",ev.which,k,ev);
+				run({event:"up",code:ev.which,key:k,original:ev});
 			}
 		});
 		
@@ -269,7 +271,7 @@ var nimble = new (function(){'use strict';
 				if(t.steps) t.pressed[k]=true;
 				t.x=ev.clientX-(context.offsetLeft||0);
 				t.y=ev.clientY-(context.offsetTop||0);
-				run("down",ev.which,k,ev);
+				run({event:"down",code:ev.which,button:k,original:ev});
 			},
 			mouseup:function(ev){
 				var k=icodes[ev.which];
@@ -277,7 +279,7 @@ var nimble = new (function(){'use strict';
 				if(t.steps) t.released[k]=true;
 				t.x=ev.clientX-(context.offsetLeft||0);
 				t.y=ev.clientY-(context.offsetTop||0);
-				run("up",ev.which,k,ev);
+				run({event:"up",code:ev.which,button:k,original:ev});
 			},
 			mousemove:function(ev){
 				t.x=ev.clientX-(context.offsetLeft||0);
@@ -290,7 +292,7 @@ var nimble = new (function(){'use strict';
 							: +ev.mozMovementY===ev.mozMovementY ? ev.mozMovementY
 							: +ev.webkitMovementY===ev.webkitMovementY ? ev.webkitMovementY : 0;
 				}
-				run("move",t.x,t.y,ev);
+				run({event:"move",x:t.x,y:t.y,original:ev});
 			},
 			wheel:function mousewheel(ev){
 				if(browser == "firefox") {
@@ -307,7 +309,7 @@ var nimble = new (function(){'use strict';
 				t.wheeldelta.y+=t.ywheel;
 				t.wheeldelta.d+=t.wheel;
 				
-				run("wheel",t.wheel,t.xwheel,t.ywheel,ev);
+				run({event:"wheel",wheel:t.wheel,xwheel:t.xwheel,ywheel:t.ywheel,original:ev});
 			}
 		});
 		
@@ -329,10 +331,10 @@ var nimble = new (function(){'use strict';
 			if(t.steps) t.pressed.push(tt);
 			tt.x=x;tt.y=y; tt.identifier=id;
 			tt.ended=false;
-			tt._move = function(x,y) {tt.x=x; tt.y=y; run("move",tt.x,tt.y)}
+			tt._move = function(x,y) {tt.x=x; tt.y=y; run({event:"move",x:tt.x,y:tt.y})}
 			tt._end = function(x,y,canc) {tt.x=x; tt.y=y;
 				delete fingers[id]; tt.ended=true;
-				if(t.steps) t.released.push(tt); run("end",tt.x,tt.y,canc);
+				if(t.steps) t.released.push(tt); run({event:"end",x:tt.x,y:tt.y,canceled:canc});
 			}
 			var run = addHooks(tt,{move:[],end:[]});
 		}
@@ -348,7 +350,7 @@ var nimble = new (function(){'use strict';
 				var X_=context.offsetLeft||0,Y_=context.offsetTop;
 				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++)
 					ls.push(new Finger(chg[i].clientX-X_,chg[i].clientY-Y_,chg[i].identifier));
-				run("start",ls,ev);
+				run({event:"start",fingers:ls,original:ev});
 			},
 			touchmove:function(ev){
 				ev.preventDefault();
@@ -357,7 +359,7 @@ var nimble = new (function(){'use strict';
 					ls.push(fingers[chg[i].identifier]);
 					fingers[chg[i].identifier]._move(chg[i].clientX-X_,chg[i].clientY-Y_);
 				}
-				run("move",ls,ev);
+				run({event:"move",fingers:ls,original:ev});
 			},
 			touchend:function(ev){
 				ev.preventDefault();
@@ -366,7 +368,7 @@ var nimble = new (function(){'use strict';
 					ls.push(fingers[chg[i].identifier]);
 					fingers[chg[i].identifier]._end(chg[i].clientX-X_,chg[i].clientY-Y_,false);
 				}
-				run("end",ls,false,ev);
+				run({event:"end",fingers:ls,canceled:false,original:ev});
 			},
 			touchcancel:function(ev){
 				ev.preventDefault();
@@ -375,7 +377,7 @@ var nimble = new (function(){'use strict';
 					ls.push(fingers[chg[i].identifier]);
 					fingers[chg[i].identifier]._end(chg[i].clientX-X_,chg[i].clientY-Y_,true);
 				}
-				run("end",ls,true,ev);
+				run({event:"end",fingers:ls,canceled:true,original:ev});
 			}
 		});
 		
@@ -422,7 +424,7 @@ var nimble = new (function(){'use strict';
 				t.xreal.x = cp*cy;          t.yreal.x = -cp*sy;         t.zreal.x = sp;
 				t.xreal.y = cr*sy+cy*sr*sp; t.yreal.y = cr*cy-sr*sp*sy; t.zreal.y = -cp*sr;
 				t.xreal.z = sr*sy-cr*cy*sp; t.yreal.z = cy*sr+cr*sp*sy; t.zreal.z = cr*cp;
-				run("rotate",t.alpha,t.beta,t.gamma,ev);
+				run({event:"rotate",alpha:t.alpha,beta:t.beta,gamma:t.gamma,original:ev});
 			},
 			devicemotion:function(ev){
 				var accg,acc;
@@ -440,7 +442,7 @@ var nimble = new (function(){'use strict';
 				
 				t.xgrav=accg.x; t.ygrav=accg.y; t.zgrav=accg.z;
 				t.xacc=acc.x; t.yacc=acc.y; t.zacc=acc.z;
-				run("move",t.xacc,t.yacc,t.zacc,ev);
+				run({event:"move",xacc:t.xacc,yacc:t.yacc,zacc:t.zacc,original:ev});
 			}
 		});
 		t.stepclear = function() {}
