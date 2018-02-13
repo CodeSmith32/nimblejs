@@ -1,7 +1,11 @@
 /*
  * Nimble - Simple Input and Step-handle Library
+ * Under the MIT License
  * Version 1.2.7
- * Updates:
+ *
+ * https://github.com/CodeSmith32/nimblejs
+ *
+ * Recent Updates:
  *  1.2.7:
  *  Make event system object- vs parameter-based
  *  Strip old fps system from nimble.Steps and send callback delta-time 
@@ -14,7 +18,7 @@
  *  Anti-aliasing canvas option
  */
 
-var nimble = new (function(){'use strict';
+var nimble = new (function(window){'use strict';
 	var nimble = this;
 
 	var browser = (function(){var u=navigator.userAgent,m,b,v,fv; if((b="edge",m=u.match(/(?:Edge\/((\d+)[\d\.]*))/)) || (b="chrome",m=u.match(/Chrome\/((\d+)[\d\.]*)/))
@@ -459,4 +463,4 @@ var nimble = new (function(){'use strict';
 		Touch:Touch,
 		Orientation:Orientation
 	};
-})();
+})(this);
