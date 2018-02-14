@@ -1,14 +1,18 @@
 /*
  * Nimble - Simple Input and Step-handle Library
  * Under the MIT License
- * Version 1.2.7
+ * Version 1.2.8
  *
  * https://github.com/CodeSmith32/nimblejs
  *
  * Recent Updates:
+ *  1.2.8:
+ *  Upgraded to support (or combat) new default for 'passive' mode on touch events
+ *  Other minor bugfixes and touch-ups
  *  1.2.7:
  *  Make event system object- vs parameter-based
- *  Strip old fps system from nimble.Steps and send callback delta-time 
+ *  Strip old fps system from nimble.Steps and send callback delta-time
+ *  Bugfixes
  *  1.2.6:
  *  Assigned mouse button values to false on start
  *  1.2.5:
@@ -19,7 +23,7 @@
  */
 
 var nimble = new (function(window){'use strict';
-	var nimble = this;
+	var nimble = this, document = window.document, navigator = window.navigator;
 
 	var browser = (function(){var u=navigator.userAgent,m,b,v,fv; if((b="edge",m=u.match(/(?:Edge\/((\d+)[\d\.]*))/)) || (b="chrome",m=u.match(/Chrome\/((\d+)[\d\.]*)/))
 		|| (b="firefox",m=u.match(/Firefox\/((\d+)[\d\.]*)/)) || (b="ie",m=u.match(/(?:MSIE |Trident.*?rv:?\s*)((\d+)[\d\.]*)/))
@@ -48,13 +52,13 @@ var nimble = new (function(window){'use strict';
 
 	function addHooks(t,hooks) {
 		function run(ev) {
-			for(var ar=hooks[ev],l=ar.length,i=0;i<l;i++)
-				ar[i].apply(undefined,arguments);
+			for(var ar=hooks[ev.event],l=ar.length,i=0;i<l;i++)
+				ar[i].call(undefined,ev);
 		}
-		t.hook = function(ev,fn) {
+		t.on = t.hook = function(ev,fn) {
 			if(typeof fn=="function" && ev in hooks) hooks[ev].push(fn);
 		}
-		t.unhook = function(ev,fn) {
+		t.off = t.unhook = function(ev,fn) {
 			if(ev in hooks) {
 				var i=hooks[ev].indexOf(fn);
 				if(i>-1) hooks[ev].splice(i,1);
@@ -70,7 +74,7 @@ var nimble = new (function(window){'use strict';
 			for(var i in lists) {
 				lst = i.split(" ");
 				for(var n=0;n<lst.length;n++)
-					ta.addEventListener(lst[n],lists[i]);
+					ta.addEventListener(lst[n],lists[i],{passive:false});
 			}
 			en=true;
 		}
@@ -100,9 +104,9 @@ var nimble = new (function(window){'use strict';
 			t.width=wid=cnv.width=context.innerWidth||context.offsetWidth;
 			t.height=hgt=cnv.height=context.innerHeight||context.offsetHeight;
 			ctx=cnv.getContext(mode);
-			if(!t.antialiasing) ctx.imageSmoothingEnabled = false;
+			if(!t.antialias) ctx.imageSmoothingEnabled = false;
 			t.context=ctx;
-			run({event:"resize",width:wid,height:hgt,original:ev});
+			run({event:"resize",context:ctx,width:wid,height:hgt,original:ev});
 			t.redraw();
 		}
 		addListens(t,window,{
@@ -119,10 +123,20 @@ var nimble = new (function(window){'use strict';
 		t.stepclear = function() {t.clear()}
 		t.clear = function(col) {
 			if(!col) col = t.back;
-			if(!col) ctx.clearRect(-1,-1,wid+2,hgt+2);
-			else {
-				ctx.fillStyle=col;
-				ctx.fillRect(-1,-1,wid+2,hgt+2);
+			if(mode=="webgl") {
+				if(!col) ctx.clearColor(0,0,0,1);
+				else {
+					var r=0,g=0,b=0,m;
+					col&=0xffffff; r=col>>16; col&=0xffff; g=col>>8; b=col&0xff;
+					ctx.clearColor(r,g,b,1);
+				}
+				ctx.clear(ctx.COLOR_BUFFER_BIT);
+			} else {
+				if(!col) ctx.clearRect(-1,-1,wid+2,hgt+2);
+				else {
+					ctx.fillStyle=col;
+					ctx.fillRect(-1,-1,wid+2,hgt+2);
+				}
 			}
 		}
 		t.redraw = function() {
@@ -155,11 +169,16 @@ var nimble = new (function(window){'use strict';
 			running=false;
 			dt=fps=null;
 		}
+		t.running = t.isenabled = function() {
+			return running;
+		}
 		t.fps = function() {
 			return fps;
 		}
 		
 		var run = addHooks(t,{step:[]});
+
+		if(nimble.enableByDefault) t.enable();
 	};
 	
 	var Keyboard = function(context) {var t=this; if(!(t instanceof Keyboard)) throw "Bad instantiation of object nimble.Keyboard";
@@ -331,19 +350,19 @@ var nimble = new (function(window){'use strict';
 	var Touch = function(context) {var t=this; if(!(t instanceof Touch)) throw "Bad instantiation of object nimble.Touch";
 		context=context||window;
 		function Finger(x,y,id) {var tt=this;
-			fingers[id] = tt;
+			t.fingers[id] = tt;
 			if(t.steps) t.pressed.push(tt);
 			tt.x=x;tt.y=y; tt.identifier=id;
 			tt.ended=false;
-			tt._move = function(x,y) {tt.x=x; tt.y=y; run({event:"move",x:tt.x,y:tt.y})}
-			tt._end = function(x,y,canc) {tt.x=x; tt.y=y;
-				delete fingers[id]; tt.ended=true;
-				if(t.steps) t.released.push(tt); run({event:"end",x:tt.x,y:tt.y,canceled:canc});
+			tt._move = function(x,y,ev) {tt.x=x; tt.y=y; run({event:"move",x:tt.x,y:tt.y,original:ev})}
+			tt._end = function(x,y,canc,ev) {if(+x===x) {tt.x=x; tt.y=y}
+				delete t.fingers[id]; tt.ended=true;
+				if(t.steps) t.released.push(tt); run({event:"end",x:tt.x,y:tt.y,canceled:canc,original:ev});
 			}
 			var run = addHooks(tt,{move:[],end:[]});
 		}
 		
-		var fingers={};
+		t.fingers = {};
 		
 		t.pressed = [];
 		t.released = [];
@@ -359,34 +378,37 @@ var nimble = new (function(window){'use strict';
 			touchmove:function(ev){
 				ev.preventDefault();
 				var X_=context.offsetLeft||0,Y_=context.offsetTop;
-				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++) {
-					ls.push(fingers[chg[i].identifier]);
-					fingers[chg[i].identifier]._move(chg[i].clientX-X_,chg[i].clientY-Y_);
+				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++)
+					if(chg[i].identifier in t.fingers) {
+						ls.push(t.fingers[chg[i].identifier]);
+						t.fingers[chg[i].identifier]._move(chg[i].clientX-X_,chg[i].clientY-Y_,ev);
 				}
 				run({event:"move",fingers:ls,original:ev});
 			},
 			touchend:function(ev){
 				ev.preventDefault();
 				var X_=context.offsetLeft||0,Y_=context.offsetTop;
-				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++) {
-					ls.push(fingers[chg[i].identifier]);
-					fingers[chg[i].identifier]._end(chg[i].clientX-X_,chg[i].clientY-Y_,false);
+				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++)
+					if(chg[i].identifier in t.fingers) {
+						ls.push(t.fingers[chg[i].identifier]);
+						t.fingers[chg[i].identifier]._end(chg[i].clientX-X_,chg[i].clientY-Y_,false,ev);
 				}
 				run({event:"end",fingers:ls,canceled:false,original:ev});
 			},
 			touchcancel:function(ev){
 				ev.preventDefault();
 				var X_=context.offsetLeft||0,Y_=context.offsetTop;
-				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++) {
-					ls.push(fingers[chg[i].identifier]);
-					fingers[chg[i].identifier]._end(chg[i].clientX-X_,chg[i].clientY-Y_,true);
+				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++)
+					if(chg[i].identifier in t.fingers) {
+						ls.push(t.fingers[chg[i].identifier]);
+						t.fingers[chg[i].identifier]._end(chg[i].clientX-X_,chg[i].clientY-Y_,true,ev);
 				}
 				run({event:"end",fingers:ls,canceled:true,original:ev});
 			}
 		});
 		
 		t.clear = function() {
-			for(var i in fingers) fingers[i]._end(null,null,2);
+			for(var i in t.fingers) t.fingers[i]._end(null,null,2,null);
 		}
 		
 		t.stepclear = function() {
@@ -419,7 +441,6 @@ var nimble = new (function(window){'use strict';
 				
 				// calculate orientation base vectors
 				var cr=cos(roll),sr=sin(roll),cp=cos(ptch),sp=sin(ptch),cy=cos(yaw),sy=sin(yaw);
-				//console.log(cr,sr,cp,sp,cy,sy);
 				t.xorient.x = cy*cp; t.yorient.x = cy*sp*sr-cr*sy; t.zorient.x = sy*sr+cy*cr*sp;
 				t.xorient.y = cp*sy; t.yorient.y = cy*cr+sy*sp*sr; t.zorient.y = cr*sy*sp-cy*sr;
 				t.xorient.z = -sp;   t.yorient.z = cp*sr;          t.zorient.z = cp*cr;
@@ -432,12 +453,12 @@ var nimble = new (function(window){'use strict';
 			},
 			devicemotion:function(ev){
 				var accg,acc;
-				accg=ev.accelerationIncludingGravity;
-				acc=ev.acceleration;
+				accg=ev.accelerationIncludingGravity||{};
+				acc=ev.acceleration||{};
 				if(acc.x===null && accg.x===null) return;
 				if(accg.x===null)
 					accg={x:acc.x+t.zreal.x*9.81,y:acc.y+t.zreal.y*9.81,z:acc.z+t.zreal.z*9.81};
-				if(ev.acceleration.x===null)
+				if(acc.x===null)
 					acc={x:accg.x-t.zreal.x*9.81,y:accg.y-t.zreal.y*9.81,z:accg.z-t.zreal.z*9.81};
 				
 				//acc.x=Math.sign(acc.x)*Math.max(Math.abs(acc.x)-0.2,0);
@@ -446,7 +467,7 @@ var nimble = new (function(window){'use strict';
 				
 				t.xgrav=accg.x; t.ygrav=accg.y; t.zgrav=accg.z;
 				t.xacc=acc.x; t.yacc=acc.y; t.zacc=acc.z;
-				run({event:"move",xacc:t.xacc,yacc:t.yacc,zacc:t.zacc,original:ev});
+				run({event:"move",xacc:t.xacc,yacc:t.yacc,zacc:t.zacc,xgrav:t.xgrav,ygrav:t.ygrav,zgrav:t.zgrav,original:ev});
 			}
 		});
 		t.stepclear = function() {}
@@ -455,12 +476,10 @@ var nimble = new (function(window){'use strict';
 		var run = addHooks(t,{rotate:[],move:[]});
 	};
 	
-	return {
-		Canvas:Canvas,
-		Steps:Steps,
-		Keyboard:Keyboard,
-		Mouse:Mouse,
-		Touch:Touch,
-		Orientation:Orientation
-	};
+	nimble.Canvas = Canvas;
+	nimble.Steps = Steps;
+	nimble.Keyboard = Keyboard;
+	nimble.Mouse = Mouse;
+	nimble.Touch = Touch;
+	nimble.Orientation = Orientation;
 })(this);
