@@ -14,6 +14,8 @@ In addition to being written in ES5, Nimble has a decent amount of compatibility
 
 ## General Module Rules
 
+These rules generally apply to all modules. Please read this section first, as some of the methods and properties mentioned here do not appear in the list of methods or properties under the modules.
+
 ### Basic Module Instantiation
 
 All Nimble modules are classes, and are contained under the main class, `nimble`. Instantiating modules may be written as the following:
@@ -190,6 +192,8 @@ For more information on what hooks are available for what modules, and what thei
 
 ## nimble.Canvas
 
+A module for initiating an HTML5 canvas in either 2D or 3D, and handling screen resize, redrawing, and clearing the screen.
+
 ### Properties:
 
 **`nimble.Canvas::context`**
@@ -265,6 +269,8 @@ Runs whenever the canvas is resized. This hook is triggered just before the "dra
 
 ## nimble.Steps
 
+A simple step-loop handler for running a simple step-based game. Makes use of requestAnimationFrame for looping (thus the step-loop will freeze when switching tabs).
+
 ### Methods:
 
 **`nimble.Steps::start()`**
@@ -293,6 +299,8 @@ Hooks to the step event. This event is triggered on each loop. The loop is run v
 - `ev.delta` the time, in milliseconds, since just before the last step
 
 ## nimble.Keyboard
+
+A simple keyboard input handler.
 
 ### Properties:
 
@@ -365,6 +373,8 @@ Triggered whenever a key is released.
 - `ev.original` the original event object
 
 ## nimble.Mouse
+
+A simple mouse cursor input handler. Captures mouse position, clicking and scrolling (both vertically and horizontally). Also handles pointerlock, making pointerlock setup and capturing very simple.
 
 ### Properties:
 
@@ -496,6 +506,8 @@ Triggered when the mouse moves.
 
 ## nimble.Touch
 
+A simple touchscreen handler, capturing any number of finger touches, and tracking them by object instead of identifier. This allows one to obtain a finger object, and watch it as its position changes, without having to query the module to see every change.
+
 ### Properties:
 
 **`nimble.Touch::fingers`**
@@ -593,7 +605,7 @@ Triggered when the finger leaves the screen or is canceled. Also triggered when 
 
 ## nimble.Orientation
 
-A module for handling device orientation and acceleration.
+A module for handling device orientation and acceleration, providing mappings back and forth between reality space and device space.
 
 Notice that some devices do not have a gyroscope, an accelerometer, or both. In such cases, the properties related to unavailable inputs will simply remain 0.
 
@@ -664,3 +676,12 @@ Triggered when a change in device acceleration occurs.
 - `ev.ygrav` the new y acceleration with gravity
 - `ev.zgrav` the new z acceleration with gravity
 - `ev.original` the original event object
+
+## Final Notes
+
+I wrote Nimble mainly for my own personal use. For its simplicity and flexibility for use in games / game engines, I'm releasing it for free public use. I cannot guarantee full stability. If you discover bugs (i.e., differences between the operations as described above and the actual operations of the code), feel free to report them. However, if you don't like how something operates, or if you're looking for additional operation, you're free to change / fork / extend it, but I don't plan on making any major updates to it in the near future, other than continuing to include support for changes in new technologies.
+
+As a secondary note, please be aware that allowed use of many of the new JavaScript APIs are being quickly retracted from what are considered 'insecure origins'. This is mostly happening in Chrome, and will soon apply to deviceorientation and devicemotion, which nimble.Orientation relies on. If / when this happens, nimble.Orientation will cease to operate on insecure origins such as sites with the 'http' protocol as well as opening an HTML file directly from your desktop. To get around this, you may try using Firefox, as it's far looser on this issue.
+
+For more information, this discussion lists many of the considered changes:
+https://groups.google.com/a/chromium.org/forum/#!topic/blink-dev/2LXKVWYkOus%5B1-25%5D
