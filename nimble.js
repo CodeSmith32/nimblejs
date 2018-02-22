@@ -1,11 +1,17 @@
 /*
  * Nimble - Simple Input and Step-handle Library
  * Under the MIT License
- * Version 1.2.8
+ * Version 1.2.10
  *
  * https://github.com/CodeSmith32/nimblejs
  *
  * Recent Updates:
+ *  1.2.10:
+ *  Better mouse events: added x,y to mouse wheel;
+ *  made mouse.xdelta,mouse.ydelta work outside pointerlock as well
+ *  1.2.9:
+ *  Better mouse events: added x,y to other mouse events;
+ *  made mouse.wheel,mouse.xwheel,mouse.ywheel accumulative, vs last event value
  *  1.2.8:
  *  Upgraded to support (or combat) new default for 'passive' mode on touch events
  *  Other minor bugfixes and touch-ups
@@ -17,9 +23,6 @@
  *  Assigned mouse button values to false on start
  *  1.2.5:
  *  Added support for pointer locking and locked pointer tracking
- *  1.2.3:
- *  Better mousewheel support for Firefox
- *  Anti-aliasing canvas option
  */
 
 var nimble = new (function(window){'use strict';
@@ -294,7 +297,7 @@ var nimble = new (function(window){'use strict';
 				if(t.steps) t.pressed[k]=true;
 				t.x=ev.clientX-(context.offsetLeft||0);
 				t.y=ev.clientY-(context.offsetTop||0);
-				run({event:"down",code:ev.which,button:k,original:ev});
+				run({event:"down",x:t.x,y:t.y,code:ev.which,button:k,original:ev});
 			},
 			mouseup:function(ev){
 				var k=icodes[ev.which];
@@ -302,37 +305,42 @@ var nimble = new (function(window){'use strict';
 				if(t.steps) t.released[k]=true;
 				t.x=ev.clientX-(context.offsetLeft||0);
 				t.y=ev.clientY-(context.offsetTop||0);
-				run({event:"up",code:ev.which,button:k,original:ev});
+				run({event:"up",x:t.x,y:t.y,code:ev.which,button:k,original:ev});
 			},
 			mousemove:function(ev){
-				t.x=ev.clientX-(context.offsetLeft||0);
-				t.y=ev.clientY-(context.offsetTop||0);
+				var nx = ev.clientX-(context.offsetLeft||0),
+					ny = ev.clientY-(context.offsetTop||0);
 				if(t.steps) {
 					t.xdelta += +ev.movementX===ev.movementX ? ev.movementX
 							: +ev.mozMovementX===ev.mozMovementX ? ev.mozMovementX
-							: +ev.webkitMovementX===ev.webkitMovementX ? ev.webkitMovementX : 0;
+							: +ev.webkitMovementX===ev.webkitMovementX ? ev.webkitMovementX : nx-t.x;
 					t.ydelta += +ev.movementY===ev.movementY ? ev.movementY
 							: +ev.mozMovementY===ev.mozMovementY ? ev.mozMovementY
-							: +ev.webkitMovementY===ev.webkitMovementY ? ev.webkitMovementY : 0;
+							: +ev.webkitMovementY===ev.webkitMovementY ? ev.webkitMovementY : ny-t.y;
 				}
-				run({event:"move",x:t.x,y:t.y,original:ev});
+				t.x = nx; t.y = ny;
+				run({event:"move",x:t.x,y:t.y,xdelta:t.xdelta,ydelta:t.ydelta,original:ev});
 			},
 			wheel:function mousewheel(ev){
+				var wx,wy,w;
 				if(browser == "firefox") {
-					t.xwheel=-ev.deltaX*24;
-					t.ywheel=-ev.deltaY*24;
-					t.wheel=-ev.deltaY*24;
+					wx=-ev.deltaX*24;
+					wy=-ev.deltaY*24;
+					w=-ev.deltaY*24;
 				} else {
-					t.xwheel=ev.wheelDeltaX;
-					t.ywheel=ev.wheelDeltaY;
-					t.wheel=ev.wheelDelta;
+					wx=ev.wheelDeltaX;
+					wy=ev.wheelDeltaY;
+					w=ev.wheelDelta;
 				}
 				
-				t.wheeldelta.x+=t.xwheel;
-				t.wheeldelta.y+=t.ywheel;
-				t.wheeldelta.d+=t.wheel;
+				t.xwheel += wx;
+				t.ywheel += wy;
+				t.wheel += w;
+				t.wheeldelta.x += wx;
+				t.wheeldelta.y += wy;
+				t.wheeldelta.d += w;
 				
-				run({event:"wheel",wheel:t.wheel,xwheel:t.xwheel,ywheel:t.ywheel,original:ev});
+				run({event:"wheel",x:t.x,y:t.y,wheel:w,xwheel:wx,ywheel:wy,original:ev});
 			}
 		});
 		
