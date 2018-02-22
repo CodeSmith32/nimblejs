@@ -3,14 +3,14 @@ NimbleJS v1.2.11
 
 NimbleJS is a lightweight JavaScript input library, providing a simple abstraction for a variety of browser inputs. Nimble is designed for adding to basic games as a means of obtaining input, providing an event-based input system for applications, as well as a step-based input system for games. For this reason, it also includes a basic step event handler as well as an HTML5 canvas handler. Here is a full list of Nimble's modules:
 
-- nimble.Canvas:      A handler for HTML5 canvases, resizing and rendering them as necessary.
+- nimble.Canvas:      A handler for HTML5 canvases, resizing and rendering them as necessary
 - nimble.Steps:       A step handler for managing a steploop
 - nimble.Keyboard:    A handler for keyboard inputs
-- nimble.Mouse:       A handler for mouse inputs - also supports pointerlock
-- nimble.Touch:       A handler for all touch-screen inputs
+- nimble.Mouse:       A handler for mouse inputs and pointerlock
+- nimble.Touch:       A handler for multifinger touch-screen inputs
 - nimble.Orientation: A handler for gyroscope and accelerometer inputs (on supporting devices)
 
-In addition to being written in ES5, Nimble has a decent amount of compatibility support for old browsers, and also has some built-in browser detection and fallbacks.
+In addition to being written in ES5, Nimble has a decent amount of compatibility support for old browsers (supporting back to IE9), and also has some built-in browser detection and fallbacks to normalize some differences in conventions among browsers.
 
 ## General Module Rules
 
