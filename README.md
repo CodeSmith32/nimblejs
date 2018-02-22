@@ -1,5 +1,5 @@
-NimbleJS
-========
+NimbleJS v1.2.11
+================
 
 NimbleJS is a lightweight JavaScript input library, providing a simple abstraction for a variety of browser inputs. Nimble is designed for adding to basic games as a means of obtaining input, providing an event-based input system for applications, as well as a step-based input system for games. For this reason, it also includes a basic step event handler as well as an HTML5 canvas handler. Here is a full list of Nimble's modules:
 
@@ -124,9 +124,38 @@ Almost all input modules provide step-based input states, and all modules (excep
 
 ### Event-based Handling and Hooks
 
-In addition to step-based handling, nimble also lets you hook event-based listeners to inputs. To do this, all modules (and some submodules, like Touch::fingers) have a `hook` and an `unhook` function that let you simply 'hook' callbacks to inputs.
+In addition to step-based handling, nimble also lets you hook event-based listeners to inputs. To do this, all modules (and some submodules, like Touch::fingers) have three methods:
 
-For instance, to hook to a nimble.Mouse module on mouse button down events, do
+**`<module instance>.hook(event,callback)`**<br/>
+**`<module instance>.on(event,callback)`**
+
+This method (both method names alias the same function) allow you to hook a function as a callback to an event. Event callbacks are triggered when the event occurs, and in the order they were added.
+
+Notice: If, within an callback of an event, another function is hooked to that very event, that newly hooked function will not be called until the next time the event occurs.
+
+- `event` is a string with one or more space-separated events the callback should be attached to.
+- `callback` is the function that will be called when the event occurs. This function is passed one object as a parameter: the event object. See the "Hooks" sections for individual modules to see what is in this object per method. Also see just below for details on the `event` parameter.
+
+**`<module instance>.unhook(event,callback)`**<br/>
+**`<module instance>.off(event,callback)`**
+
+This method (both method names alias the same function) will remove the callback from the list of callbacks for the specified event.
+
+Notice: In the case that, within a callback of an event a function is unhooked from that very event: if the callback was not yet called, it will be removed and not called during that event.
+
+- `event` is a string of one or more space-separated events that the callback should be unhooked from.
+- `callback` is the callback function that should be removed from the list of callbacks. If the function is not bound to the event, the call has no effect.
+
+**`<module instance>.unhookAll(event)`**<br/>
+**`<module instance>.offAll(event)`**
+
+This method (both method names alias the same function) will completely clear all callbacks from the list of callbacks hooked to a specific event.
+
+Notice: In the case that this is called within a callback hooked to this very event, the rest of the callbacks that had not been called will miss the event.
+
+- `event` is the event that the callbacks should be cleared from.
+
+So, for instance, to hook to a nimble.Mouse module on mouse button down events, do
 
 ```
 var mouse = new nimble.Mouse();
@@ -151,7 +180,7 @@ step.hook("step",stepLoop);
 
 ```
 
-Hooks also pass one parameter to the callback. This parameter is an object holding the properties of the event. For more information on the properties for each callback, refer to each modules hooks.
+As mentioned above, the callback also receives one parameter: the event object. This parameter is an object holding the properties of the event. For more information on the properties for each callback, refer to each modules hooks.
 
 ```
 function mouseDownCallback(ev) {
@@ -167,7 +196,7 @@ function stepLoop(ev) {
 // ...
 ```
 
-The callback parameter object will always have an `event` property, which is the name of the event that it was hooked to. This allows one function to be hooked to multiple hooks. For instance, if hooking to both mouse "down" and "up" events, the event can be distinguished like so:
+Notice, all The callback parameter object will always have an `event` property, which is the name of the event that it was hooked to. This allows one function to be hooked to multiple hooks. For instance, if hooking to both mouse "down" and "up" events, the event can be distinguished like so:
 
 ```
 var mouse = new nimble.Mouse();
@@ -180,13 +209,10 @@ function mouseEvent(ev) {
 		}
 	}
 }
-mouse.hook("down",mouseEvent);
-mouse.hook("up",mouseEvent);
+mouse.hook("down up",mouseEvent);
 ```
 
 In addition to `event`, if the type of event is one that is triggered by an actual event, `original` is another available property that refers to the original JavaScript event object, as triggered by the browser.
-
-For convenience and consistency with many other modern libraries, `on()` is an alias of `hook()`, and `off()` is an alias of `unhook()`.
 
 For more information on what hooks are available for what modules, and what their callbacks provide, see details on the specific modules.
 
@@ -222,7 +248,7 @@ The background color to be used when clearing the canvas. For 2D contexts, this 
 
 Refreshes the canvas by re-adjusting its size, creating a new context, and re-rendering.
 
-**`nimble.Canvas::canvas(canvasElement,dimensions)`**
+**`nimble.Canvas::canvas(canvasElement,dimensions)`**<br/>
 **`canvasDOMElement nimble.Canvas::canvas()`**
 
 Initiates the canvas module by giving it the canvas DOM element to work with, and providing the number of dimensions to render.
@@ -308,7 +334,9 @@ A simple keyboard input handler.
 
 An instance of nimble.Keyboard maps the following properties directly to booleans representing if the respective key is down at the moment:
 
-backspace, tab, numclear, enter, shift, control, alt, space, pageup, pagedown, end, home, left, up, right, down, pausebreak, capslock, escape, printscreen, insert, del, windows, numpad0, numpad1, numpad2, numpad3, numpad4, numpad5, numpad6, numpad7, numpad8, numpad9, multiply, add, subtract, decimal, divide, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, numlock, scrolllock, semicolon, colon, plus, equals, comma, lessthan, period, greaterthan, minus, underscore, slash, question, atilda, lbracket, rbracket, quote, backslash, verticalbar
+backspace, tab, numclear, enter, shift, control, alt, space, pageup, pagedown, end, home, left, up, right, down, pausebreak, capslock, escape, printscreen, insert, del, windows, numpad0, numpad1, numpad2, numpad3, numpad4, numpad5, numpad6, numpad7, numpad8, numpad9, multiply, add, subtract, decimal, divide, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, numlock, scrolllock, semicolon, equals, comma, period, minus, slash, accent, lbracket, rbracket, quote, backslash
+
+Notice that the key names refer only to the names of the characters generated when not holding shift.
 
 In addition to these named keys, all single uppercase letters are mapped to booleans in a similar manner. Indices 0 to 9 are also mapped the same way, though to access these, one must do
 
@@ -320,7 +348,9 @@ if(keyboard[0]) {
 
 **`nimble.Keyboard::codes`**
 
-A utility object mapping all the keys listed above to their respective keycodes. For instance, `keyboard.codes.backspace == 8`, `keyboard.codes.enter == 13`, `keyboard.codes[0] == 48`, etc.
+A utility object mapping all the keys listed above to their respective keycodes. For instance, `keyboard.codes.backspace == 8`, `keyboard.codes.enter == 13`, `keyboard.codes[0] == 48`, etc. In addition to the names listed above, the following character names are also included (characters generated when holding shift):
+
+colon, plus, lessthan, greaterthan, underscore, question, atilda, verticalbar
 
 **`nimble.Keyboard::icodes`**
 
@@ -424,21 +454,21 @@ An object listing the changes in the mouse wheel scrolling. If step-based events
 - `y` the change in the vertical scrolling
 - `d` the general 'delta' in scrolling in any direction (typically use this when disregarding horizontal scrolling)
 
-**`nimble.Mouse::x`**
+**`nimble.Mouse::x`**<br/>
 **`nimble.Mouse::y`**
 
 The x and y of the mouse at any given time. Note this value will not be accurate if the mouse moves outside the browser (or context object) except when clicking and dragging from the window.
 
-**`nimble.Mouse::xdelta`**
+**`nimble.Mouse::xdelta`**<br/>
 **`nimble.Mouse::ydelta`**
 
-The change in the mouse position when in pointerlock mode. These values are not affected when outside pointerlock. When step-based events are set up for the mouse module, these values will represent the pointerlock mouse movement since the last step. If not, they will represent the pointerlock mouse movement since pointerlock started.
+The change in the mouse position since the last step. When inside pointerlock, these values should be used instead of mouse position. When step-based events are set up for the mouse module, these values will represent the pointerlock mouse movement since the last step. If not, they will represent the mouse movement since the Mouse module was created (or enabled).
 
-**`nimble.Mouse::xwheel`**
-**`nimble.Mouse::ywheel`**
+**`nimble.Mouse::xwheel`**<br/>
+**`nimble.Mouse::ywheel`**<br/>
 **`nimble.Mouse::wheel`**
 
-The delta change in scrolling for the last time a change occurred in mouse scroll.
+The delta change in scrolling since the Mouse module was created (or enabled). Applications are free to set these values to 0 and watch them change again.
 
 **`nimble.Mouse::steps`**
 
@@ -446,12 +476,12 @@ The nimble.Mouse module supports step-based state, and therefore has a `steps` p
 
 ### Methods:
 
-**`nimble.Mouse::pointerlock(pointerlockMode)`**
+**`nimble.Mouse::pointerlock(pointerlockMode)`**<br/>
 **`pointerlockRequested nimble.Mouse::pointerlock()`**
 
-Sets if this element's context should be a pointerlock element or not. Pointerlock elements will trigger pointerlock to start when they're clicked on.
+Sets/gets if this element's context should be a pointerlock element or not. Pointerlock elements will trigger pointerlock to start when they're clicked on. If the mouse is in pointerlock mode on this element, setting this to `false` will exit pointerlock mode.
 
-If no parameters are given, returns if this module was set to use pointerlock on its element. Note this does not tell whether or not the mouse is currently in pointerlock mode or not. For that, see `nimble.Mouse::ispointerlocked()`.
+If no parameters are given, returns if this module was set to use pointerlock on its element. Notice, this method does not tell whether or not the mouse is currently in pointerlock mode or not. For that, see `nimble.Mouse::ispointerlocked()`.
 
 **`nimble.Mouse::ispointerlocked()`**
 
@@ -475,6 +505,9 @@ Triggered when the mouse scrolls.
 - `ev.wheel` the change in the mouse wheel scrolling
 - `ev.xwheel` the change in horizontal scrolling
 - `ev.ywheel` the change in vertical scrolling
+- `ev.x` the mouse x when scrolling
+- `ev.y` the mouse y when scrolling
+- `ev.pointerlocked` a boolean: whether or not the mouse is in pointerlock on this module's context
 - `ev.original` the original event object
 
 **`"down"`**
@@ -484,6 +517,9 @@ Triggered when a mouse button is pressed.
 - `ev.event` event type: "down"
 - `ev.code` the code of the pressed button (1, 2, or 3)
 - `ev.button` the name of the pressed button ("left", "middle", or "right")
+- `ev.x` the mouse x when clicking
+- `ev.y` the mouse y when clicking
+- `ev.pointerlocked` a boolean: whether or not the mouse is in pointerlock on this module's context
 - `ev.original` the original event object
 
 **`"up"`**
@@ -493,6 +529,9 @@ Triggered when a mouse button is released.
 - `ev.event` event type: "down"
 - `ev.code` the code of the released button (1, 2, or 3)
 - `ev.button` the name of the released button ("left", "middle", or "right")
+- `ev.x` the mouse x when releasing
+- `ev.y` the mouse y when releasing
+- `ev.pointerlocked` a boolean: whether or not the mouse is in pointerlock on this module's context
 - `ev.original` the original event object
 
 **`"move"`**
@@ -502,6 +541,20 @@ Triggered when the mouse moves.
 - `ev.event` event type: "down"
 - `ev.x` the new mouse x
 - `ev.y` the new mouse y
+- `ev.xdelta` the change in mouse x since the last mouse move event; also updated when in pointerlock mode
+- `ev.ydelta` the change in mouse y since the last mouse move event; also updated when in pointerlock mode
+- `ev.pointerlocked` a boolean: whether or not the mouse is in pointerlock on this module's context
+- `ev.original` the original event object
+
+**`"pointerlock"`**
+
+Triggered when pointerlock on this element changes.
+
+- `ev.event` event type: "pointerlock"
+- `ev.x` the mouse x when the change occurs
+- `ev.y` the mouse y when the change occurs
+- `ev.pointerlocked` a boolean: `true` if the pointerlock change locked the mouse, or `false` if it failed or is exiting
+- `ev.failed` if the event was triggered because the context failed to obtain pointerlock
 - `ev.original` the original event object
 
 ## nimble.Touch
@@ -569,7 +622,7 @@ Each instance of this class represents a finger as it has touched and moves acro
 
 ### Properties:
 
-**`nimble.Touch::Finger::x`**
+**`nimble.Touch::Finger::x`**<br/>
 **`nimble.Touch::Finger::y`**
 
 The position of the finger on the screen. This coordinate will be relative to the touch module's context object.
@@ -611,37 +664,37 @@ Notice that some devices do not have a gyroscope, an accelerometer, or both. In 
 
 ### Properties:
 
-**`nimble.Orientation::alpha`**
-**`nimble.Orientation::beta`**
+**`nimble.Orientation::alpha`**<br/>
+**`nimble.Orientation::beta`**<br/>
 **`nimble.Orientation::gamma`**
 
 The alpha, beta, and gamma rotation of the device in degrees. For more information on rotation of devices, look up the 'deviceorientation' JavaScript event. A thorough description of the event and angle system can be found here:
 https://w3c.github.io/deviceorientation/spec-source-orientation.html#deviceorientation
 
-**`nimble.Orientation::xgrav`**
-**`nimble.Orientation::ygrav`**
+**`nimble.Orientation::xgrav`**<br/>
+**`nimble.Orientation::ygrav`**<br/>
 **`nimble.Orientation::zgrav`**
 
 The vector of the acceleration including gravity. Given that the device's orientation at times can be off, this gives a vector generally relating what direction 'down' is to the device in relation to the screen. E.g., if `zgrav` is `-9.81`, the device is probably down flat. If `xgrav` or `ygrav` are non-zero, the device is tilted downward in that general direction.
 
 Note that some device accelerometers don't include acceleration with gravity. If not, Nimble will auto-fill these values with a guestimate based on the device's orientation according to its gyroscope.
 
-**`nimble.Orientation::xacc`**
-**`nimble.Orientation::yacc`**
+**`nimble.Orientation::xacc`**<br/>
+**`nimble.Orientation::yacc`**<br/>
 **`nimble.Orientation::zacc`**
 
 The vector of the acceleration excluding gravity.
 
 Note that some device accelerometers don't include acceleration without gravity. If not, Nimble will take the acceleration that includes gravity and try to subtract gravity out based on the device's orientation according to its gyroscope. Please be aware this is not extremely accurate, especially when the device's gyroscope is not well calibrated.
 
-**`nimble.Orientation::xorient`**
-**`nimble.Orientation::yorient`**
+**`nimble.Orientation::xorient`**<br/>
+**`nimble.Orientation::yorient`**<br/>
 **`nimble.Orientation::zorient`**
 
 Each of these properties is an object containing three values: `x`, `y`, and `z`. Each of these properties represents a base vector. Each base vector is in reality-space (x being east-west, y being north-south, and z being up-down), and represents the base-vector orientation of the device in this reality-space system.
 
-**`nimble.Orientation::xreal`**
-**`nimble.Orientation::yreal`**
+**`nimble.Orientation::xreal`**<br/>
+**`nimble.Orientation::yreal`**<br/>
 **`nimble.Orientation::zreal`**
 
 Each of these properties is an object containing three values: `x`, `y`, and `z`. Each of these properties represents a base vector. Each base vector is in screen-space coordinates, and represents the direction that follows an axis in reality.
@@ -679,9 +732,8 @@ Triggered when a change in device acceleration occurs.
 
 ## Final Notes
 
-I wrote Nimble mainly for my own personal use. For its simplicity and flexibility for use in games / game engines, I'm releasing it for free public use. I cannot guarantee full stability. If you discover bugs (i.e., differences between the operations as described above and the actual operations of the code), feel free to report them. However, if you don't like how something operates, or if you're looking for additional operation, you're free to change / fork / extend it, but I don't plan on making any major updates to it in the near future, other than continuing to include support for changes in new technologies.
+I wrote Nimble mainly for my own personal use. For its simplicity and flexibility for use in games / game engines, I'm releasing it for free public use. I cannot guarantee full stability. If you discover bugs (i.e., differences between the operations as described above and the actual operations of the code), feel free to report them. However, if you don't like how something operates, or if you're looking for additional operation, you're free to ask me, as I might choose to change it. However, I don't plan on making any major updates to it in the near future, other than continuing to include support for minor changes in technologies to preserve its compatibility. Otherwise, feel free to modify or fork it.
 
-As a secondary note, please be aware that allowed use of many of the new JavaScript APIs are being quickly retracted from what are considered 'insecure origins'. This is mostly happening in Chrome, and will soon apply to deviceorientation and devicemotion, which nimble.Orientation relies on. If / when this happens, nimble.Orientation will cease to operate on insecure origins such as sites with the 'http' protocol as well as opening an HTML file directly from your desktop. To get around this, you may try using Firefox, as it's far looser on this issue.
-
+As a secondary note, please be aware that allowed use of many of the new JavaScript APIs are being quickly retracted from what are considered 'insecure origins'. This is mostly happening in Chrome, and will soon apply to deviceorientation and devicemotion, which nimble.Orientation relies on. If / when this happens, nimble.Orientation will cease to operate on insecure origins such as sites with the 'http' protocol as well as opening an HTML file directly from your desktop. To get around this, you may try using Firefox, as it's far looser on this issue.<br/>
 For more information, this discussion lists many of the considered changes:
 https://groups.google.com/a/chromium.org/forum/#!topic/blink-dev/2LXKVWYkOus%5B1-25%5D
