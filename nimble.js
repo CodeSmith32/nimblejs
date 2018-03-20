@@ -1,11 +1,13 @@
 /*
  * Nimble - Simple Input and Step-handle Library
  * Under the MIT License
- * Version 1.2.11
+ * Version 1.2.12
  *
  * https://github.com/CodeSmith32/nimblejs
  *
  * Recent Updates:
+ *  1.2.12:
+ *  Fixed a bug that made it es5 incompatible
  *  1.2.11:
  *  Fixed a keyboard keyname override bug
  *  Upgraded the event listener API
@@ -102,7 +104,7 @@ var nimble = new (function(window){'use strict';
 		}
 		var hookobj = {
 			hooks: hookmap,
-			run(ev) {
+			run: function(ev) {
 				if(!ev || !("event" in ev)) throw "Doing it wrong: Hook event object is missing 'event'";
 				if(ev.event in hookiters)
 					throw "Running hook calls itself recursively: "+ev.event;
@@ -116,7 +118,7 @@ var nimble = new (function(window){'use strict';
 				delete hookiters[ev.event];
 				return hookobj;
 			},
-			extendHooks(hooks) {
+			extendHooks: function(hooks) {
 				hooks = hooks.split(" ");
 				for(var i=0;i<hooks.length;i++)
 					if(!(hooks[i] in hookmap))
