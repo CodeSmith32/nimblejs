@@ -1,5 +1,5 @@
-NimbleJS v1.2.11
-================
+NimbleJS v1.2
+=============
 
 NimbleJS is a lightweight JavaScript input library, providing a simple abstraction for a variety of browser inputs. Nimble is designed for adding to basic games as a means of obtaining input, providing an event-based input system for applications, as well as a step-based input system for games. For this reason, it also includes a basic step event handler as well as an HTML5 canvas handler. Here is a full list of Nimble's modules:
 
