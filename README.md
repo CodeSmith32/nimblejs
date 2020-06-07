@@ -38,7 +38,8 @@ if(mouse.y < 50) {
 	// the mouse is near the top of the browser
 }
 
-for(var finger in touch.fingers) {
+for(var id in touch.fingers) {
+	var finger = touch.fingers[id];
 	var dx = finger.x - this.x, dy = finger.y - this.y;
 	if(dx*dx + dy*dy < this.rad*this.rad) {
 		// the finger is touching a circle

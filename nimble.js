@@ -1,11 +1,15 @@
 /*
  * Nimble - Simple Input and Step-handle Library
  * Under the MIT License
- * Version 1.2.12
+ * Version 1.2.14
  *
  * https://github.com/CodeSmith32/nimblejs
  *
  * Recent Updates:
+ *  1.2.14:
+ *  Fixed element offset coordinate subtraction
+ *  1.2.13:
+ *  Add support for '*' event
  *  1.2.12:
  *  Fixed a bug that made it es5 incompatible
  *  1.2.11:
@@ -22,14 +26,6 @@
  *  1.2.8:
  *  Upgraded to support (or combat) new default for 'passive' mode on touch events
  *  Other minor bugfixes and touch-ups
- *  1.2.7:
- *  Make event system object- vs parameter-based
- *  Strip old fps system from nimble.Steps and send callback delta-time
- *  Bugfixes
- *  1.2.6:
- *  Assigned mouse button values to false on start
- *  1.2.5:
- *  Added support for pointer locking and locked pointer tracking
  */
 
 var nimble = new (function(window){'use strict';
@@ -57,11 +53,16 @@ var nimble = new (function(window){'use strict';
 		PLelement = plock_prefix + (plock_prefix ? 'P' : 'p') + 'ointerLockElement',
 		PLchange = plock_prefix + "pointerlockchange",
 		PLerror = plock_prefix + "pointerlockerror";
-	
+
 	nimble.enableByDefault = true;
 
+	function elOffset(el) {
+		if(el === window) return {left:0, top:0};
+		return el.getBoundingClientRect();
+	}
+
 	function addHooks(t,hooks) {
-		var hookmap = {}, hookiters = {};
+		var hookmap = {'*':[]}, hookiters = {};
 		(function(){
 			hooks = hooks.split(" ");
 			for(var i=0;i<hooks.length;i++)
@@ -69,7 +70,7 @@ var nimble = new (function(window){'use strict';
 		})();
 
 		t.hook = t.on = function(hk,fn) {
-			if(fn instanceof Function) {
+			if(typeof fn === "function") {
 				hk = hk.split(" ");
 				for(var i=0;i<hk.length;i++)
 					if(hk[i] in hookmap)
@@ -78,7 +79,7 @@ var nimble = new (function(window){'use strict';
 			return t;
 		}
 		t.unhook = t.off = function(hk,fn) {
-			if(fn instanceof Function) {
+			if(typeof fn === "function") {
 				hk = hk.split(" ");
 				for(var i=0;i<hk.length;i++)
 					if(hk[i] in hookmap) {
@@ -98,7 +99,7 @@ var nimble = new (function(window){'use strict';
 				if(hk[i] in hookmap) {
 					hookmap[hk[i]] = [];
 					var iter = hookiters[hk[i]];
-					if(iter) iter.i = iter.l = 0; 
+					if(iter) iter.i = iter.l = 0;
 				}
 			return t;
 		}
@@ -108,14 +109,23 @@ var nimble = new (function(window){'use strict';
 				if(!ev || !("event" in ev)) throw "Doing it wrong: Hook event object is missing 'event'";
 				if(ev.event in hookiters)
 					throw "Running hook calls itself recursively: "+ev.event;
+
 				var iter = hookiters[ev.event] = {
 					l: hookmap[ev.event].length,
 					i: 0
 				};
 				for(iter.i=0;iter.i<iter.l;iter.i++)
 					hookmap[ev.event][iter.i].call(t,ev);
-				
 				delete hookiters[ev.event];
+
+				var iter = hookiters['*'] = {
+					l: hookmap['*'].length,
+					i: 0
+				};
+				for(iter.i=0;iter.i<iter.l;iter.i++)
+					hookmap['*'][iter.i].call(t,ev);
+				delete hookiters['*'];
+
 				return hookobj;
 			},
 			extendHooks: function(hooks) {
@@ -154,7 +164,7 @@ var nimble = new (function(window){'use strict';
 		t.isenabled = function() {return en}
 		if(nimble.enableByDefault) t.enable();
 	}
-	
+
 	var Canvas = function(context) {var t=this; if(!(t instanceof Canvas)) throw "Bad instantiation of object nimble.Canvas";
 		context=context||window;
 		var cnv=null,mode="2d";
@@ -175,7 +185,7 @@ var nimble = new (function(window){'use strict';
 		addListens(t,window,{
 			resize:resize
 		});
-		
+
 		t.update = function() {
 			resize(null);
 		}
@@ -206,10 +216,10 @@ var nimble = new (function(window){'use strict';
 			run({event:"draw",context:ctx,width:wid,height:hgt});
 		}
 		t.back = null;
-		
+
 		var run = addHooks(t,"draw resize").run;
 	};
-	
+
 	var Steps = function(context) {var t=this; if(!(t instanceof Steps)) throw "Bad instantiation of object nimble.Steps";
 		context=context||window;
 		var tm=null,fps=null,running=false,dt=null;
@@ -238,12 +248,12 @@ var nimble = new (function(window){'use strict';
 		t.fps = function() {
 			return fps;
 		}
-		
+
 		var run = addHooks(t,"step").run;
 
 		if(nimble.enableByDefault) t.enable();
 	};
-	
+
 	var Keyboard = function(context) {var t=this; if(!(t instanceof Keyboard)) throw "Bad instantiation of object nimble.Keyboard";
 		context=context||window;
 		var codes = (function(){ // generate codetable
@@ -261,12 +271,12 @@ var nimble = new (function(window){'use strict';
 		var icodes={}; for(var i in codes) {t[i]=false; icodes[codes[i]]=i}
 		var extracodes = {colon:186,plus:187,lessthan:188,greaterthan:190,underscore:189,question:191,atilda:192,verticalbar:220};
 		for(var c in extracodes) codes[c] = extracodes[c];
-		
+
 		t.codes = Object.create(codes);
 		t.icodes = Object.create(icodes);
 		t.pressed = {};
 		t.released = {};
-		
+
 		addListens(t,context,{
 			keydown:function(ev){
 				var k=icodes[ev.which];
@@ -282,20 +292,20 @@ var nimble = new (function(window){'use strict';
 				run({event:"up",code:ev.which,key:k,original:ev});
 			}
 		});
-		
+
 		t.stepclear = function() {
 			t.pressed={};
 			t.released={};
 		}
 		t.steps = false;
-		
+
 		var run = addHooks(t,"down up").run;
 	};
-	
+
 	var Mouse = function(context) {var t=this; if(!(t instanceof Mouse)) throw "Bad instantiation of object nimble.Mouse";
 		context=context||window;
 		var plockel = requestPL in context ? context : document.documentElement;
-		
+
 		var codes={left:1,middle:2,right:3};
 		var icodes={}; for(var i in codes) {t[i]=false; icodes[codes[i]]=i}
 
@@ -311,12 +321,12 @@ var nimble = new (function(window){'use strict';
 		t.xwheel = 0;
 		t.ywheel = 0;
 		t.wheel = 0;
-		
+
 		var plock = false, plocked = false;
 		t.pointerlock = function(pl) {
 			if(!arguments.length) return plock;
 			plock = !!pl;
-			if(!plock && plocked) t.exitpointerlock();			
+			if(!plock && plocked) t.exitpointerlock();
 		}
 		t.ispointerlocked = function() {
 			return plocked;
@@ -326,7 +336,7 @@ var nimble = new (function(window){'use strict';
 				plockel[exitPL]();
 			}
 		}
-		
+
 		var en1 = {}, en2 = {};
 		t.enable = function() {
 			en1.enable();
@@ -351,28 +361,31 @@ var nimble = new (function(window){'use strict';
 			}
 			addListens(en1,document,o);
 		})();
-		
+
 		addListens(en2,context,{
 			mousedown:function(ev){
 				if(plock && !plocked) plockel[requestPL]();
 				var k=icodes[ev.which];
 				t[k]=true;
 				if(t.steps) t.pressed[k]=true;
-				t.x=ev.clientX-(context.offsetLeft||0);
-				t.y=ev.clientY-(context.offsetTop||0);
+				var box = elOffset(context);
+				t.x=ev.clientX-box.left;
+				t.y=ev.clientY-box.top;
 				run({event:"down",x:t.x,y:t.y,code:ev.which,button:k,pointerlocked:plocked,original:ev});
 			},
 			mouseup:function(ev){
 				var k=icodes[ev.which];
 				t[k]=false;
 				if(t.steps) t.released[k]=true;
-				t.x=ev.clientX-(context.offsetLeft||0);
-				t.y=ev.clientY-(context.offsetTop||0);
+				var box = elOffset(context);
+				t.x=ev.clientX-box.left;
+				t.y=ev.clientY-box.top;
 				run({event:"up",x:t.x,y:t.y,code:ev.which,button:k,pointerlocked:plocked,original:ev});
 			},
 			mousemove:function(ev){
-				var nx = ev.clientX-(context.offsetLeft||0),
-					ny = ev.clientY-(context.offsetTop||0);
+				var box = elOffset(context);
+				var nx = ev.clientX-box.left,
+					ny = ev.clientY-box.top;
 
 				var dx = +ev.movementX===ev.movementX ? ev.movementX
 						: +ev.mozMovementX===ev.mozMovementX ? ev.mozMovementX
@@ -397,18 +410,18 @@ var nimble = new (function(window){'use strict';
 					wy=ev.wheelDeltaY;
 					w=ev.wheelDelta;
 				}
-				
+
 				t.xwheel += wx;
 				t.ywheel += wy;
 				t.wheel += w;
 				t.wheeldelta.x += wx;
 				t.wheeldelta.y += wy;
 				t.wheeldelta.d += w;
-				
+
 				run({event:"wheel",x:t.x,y:t.y,wheel:w,xwheel:wx,ywheel:wy,pointerlocked:plocked,original:ev});
 			}
 		});
-		
+
 		t.stepclear = function() {
 			t.pressed={};
 			t.released={};
@@ -416,10 +429,10 @@ var nimble = new (function(window){'use strict';
 			t.xdelta = t.ydelta = 0;
 		}
 		t.steps = false;
-		
+
 		var run = addHooks(t,"wheel down up move pointerlock").run;
 	};
-	
+
 	var Touch = function(context) {var t=this; if(!(t instanceof Touch)) throw "Bad instantiation of object nimble.Touch";
 		context=context||window;
 		function Finger(x,y,id) {var tt=this;
@@ -434,23 +447,27 @@ var nimble = new (function(window){'use strict';
 			}
 			var run = addHooks(tt,"move end").run;
 		}
-		
+
 		t.fingers = {};
-		
+
 		t.pressed = [];
 		t.released = [];
-		
+
 		addListens(t,context,{
 			touchstart:function(ev){
 				ev.preventDefault();
-				var X_=context.offsetLeft||0,Y_=context.offsetTop;
+				var box = elOffset(context);
+				var X_=box.left,
+					Y_=box.top;
 				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++)
 					ls.push(new Finger(chg[i].clientX-X_,chg[i].clientY-Y_,chg[i].identifier));
 				run({event:"start",fingers:ls,original:ev});
 			},
 			touchmove:function(ev){
 				ev.preventDefault();
-				var X_=context.offsetLeft||0,Y_=context.offsetTop;
+				var box = elOffset(context);
+				var X_=box.left,
+					Y_=box.top;
 				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++)
 					if(chg[i].identifier in t.fingers) {
 						ls.push(t.fingers[chg[i].identifier]);
@@ -460,7 +477,9 @@ var nimble = new (function(window){'use strict';
 			},
 			touchend:function(ev){
 				ev.preventDefault();
-				var X_=context.offsetLeft||0,Y_=context.offsetTop;
+				var box = elOffset(context);
+				var X_=box.left,
+					Y_=box.top;
 				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++)
 					if(chg[i].identifier in t.fingers) {
 						ls.push(t.fingers[chg[i].identifier]);
@@ -470,7 +489,9 @@ var nimble = new (function(window){'use strict';
 			},
 			touchcancel:function(ev){
 				ev.preventDefault();
-				var X_=context.offsetLeft||0,Y_=context.offsetTop;
+				var box = elOffset(context);
+				var X_=box.left,
+					Y_=box.top;
 				for(var chg=ev.changedTouches,ls=[],l=chg.length,i=0;i<l;i++)
 					if(chg[i].identifier in t.fingers) {
 						ls.push(t.fingers[chg[i].identifier]);
@@ -479,20 +500,20 @@ var nimble = new (function(window){'use strict';
 				run({event:"end",fingers:ls,canceled:true,original:ev});
 			}
 		});
-		
+
 		t.clear = function() {
 			for(var i in t.fingers) t.fingers[i]._end(null,null,2,null);
 		}
-		
+
 		t.stepclear = function() {
 			t.pressed=[];
 			t.released=[];
 		}
 		t.steps = false;
-		
+
 		var run = addHooks(t,"start move end").run;
 	};
-	
+
 	var Orientation = function(context) {var t=this; if(!(t instanceof Orientation)) throw "Bad instantiation of object nimble.Orientation";
 		context=context||window;
 		t.alpha=0; t.beta=0; t.gamma=0;
@@ -504,14 +525,14 @@ var nimble = new (function(window){'use strict';
 		t.xreal = {x:0,y:0,z:0};
 		t.yreal = {x:0,y:0,z:0};
 		t.zreal = {x:0,y:0,z:0};
-		
+
 		var dtr=Math.PI/180,cos=Math.cos,sin=Math.sin;
-		
+
 		addListens(t,context,{
 			deviceorientation:function(ev){
 				t.alpha=ev.alpha; t.beta=ev.beta; t.gamma=ev.gamma;
 				var roll=t.alpha*dtr,ptch=t.beta*dtr,yaw=t.gamma*dtr;
-				
+
 				// calculate orientation base vectors
 				var cr=cos(roll),sr=sin(roll),cp=cos(ptch),sp=sin(ptch),cy=cos(yaw),sy=sin(yaw);
 				t.xorient.x = cy*cp; t.yorient.x = cy*sp*sr-cr*sy; t.zorient.x = sy*sr+cy*cr*sp;
@@ -533,11 +554,11 @@ var nimble = new (function(window){'use strict';
 					accg={x:acc.x+t.zreal.x*9.81,y:acc.y+t.zreal.y*9.81,z:acc.z+t.zreal.z*9.81};
 				if(acc.x===null)
 					acc={x:accg.x-t.zreal.x*9.81,y:accg.y-t.zreal.y*9.81,z:accg.z-t.zreal.z*9.81};
-				
+
 				//acc.x=Math.sign(acc.x)*Math.max(Math.abs(acc.x)-0.2,0);
 				//acc.y=Math.sign(acc.y)*Math.max(Math.abs(acc.y)-0.2,0);
 				//acc.z=Math.sign(acc.z)*Math.max(Math.abs(acc.z)-0.2,0);
-				
+
 				t.xgrav=accg.x; t.ygrav=accg.y; t.zgrav=accg.z;
 				t.xacc=acc.x; t.yacc=acc.y; t.zacc=acc.z;
 				run({event:"move",xacc:t.xacc,yacc:t.yacc,zacc:t.zacc,xgrav:t.xgrav,ygrav:t.ygrav,zgrav:t.zgrav,original:ev});
@@ -545,10 +566,10 @@ var nimble = new (function(window){'use strict';
 		});
 		t.stepclear = function() {}
 		t.steps = false;
-		
+
 		var run = addHooks(t,"rotate move").run;
 	};
-	
+
 	nimble.Canvas = Canvas;
 	nimble.Steps = Steps;
 	nimble.Keyboard = Keyboard;
