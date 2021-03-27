@@ -1,11 +1,13 @@
 /*
  * Nimble - Simple Input and Step-handle Library
  * Under the MIT License
- * Version 1.2.14
+ * Version 1.2.15
  *
  * https://github.com/CodeSmith32/nimblejs
  *
  * Recent Updates:
+ *  1.2.15
+ *  Made nimble module-friendly
  *  1.2.14:
  *  Fixed element offset coordinate subtraction
  *  1.2.13:
@@ -576,4 +578,7 @@ var nimble = new (function(window){'use strict';
 	nimble.Mouse = Mouse;
 	nimble.Touch = Touch;
 	nimble.Orientation = Orientation;
-})(this);
+})(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);
+
+if(typeof module === 'object' && module && module.exports)
+	module.exports = nimble;
